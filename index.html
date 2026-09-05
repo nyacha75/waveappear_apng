@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>깃허브 APNG 파도 메이커</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>깃허브 APNG 파도 메이커</h1>
+            <p>이미지를 업로드하고 파도가 지나가듯 나타나고 사라지는 투명 APNG를 만드세요.</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display: none;">
+                <label for="imageInput" class="btn upload-btn">
+                    <span class="icon">📁</span> 이미지 선택 (투명 PNG 권장)
+                </label>
+            </div>
+
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="loader-container" id="loaderContainer">
+                    <div class="loader"></div>
+                    <p>APNG 생성 중...</p>
+                </div>
+
+                <div class="preview-box" id="previewBox" style="display: none;">
+                    <h2>미리보기 및 다운로드</h2>
+                    <div class="canvas-container">
+                        <canvas id="animationCanvas"></canvas>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button id="downloadBtn" class="btn download-btn" disabled>
+                            <span class="icon">💾</span> APNG 다운로드
+                        </button>
+                    </div>
+                    
+                    <div class="code-output">
+                        <label for="githubCode">깃허브 README 코드:</label>
+                        <textarea id="githubCode" readonly rows="2">![애니메이션 설명](wave_animation.png)</textarea>
+                        <button id="copyCodeBtn" class="btn copy-btn">코드 복사</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>제작: [사용자 이름] | <a href="#" target="_blank">GitHub 저장소</a></p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
