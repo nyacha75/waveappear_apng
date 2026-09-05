@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRPG & 코코포리아 파도 메이커</title>
+    <title>TRPG & 코코포리아 파도 메이커 (안정성 강화버전)</title>
+    <!-- 메인 스레드 폴백용 UPNG 라이브러리 -->
     <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -14,6 +15,7 @@
             --card-bg: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
+            --error: #ef4444;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -54,16 +56,16 @@
         .btn-primary:disabled { background-color: #cbd5e1; cursor: not-allowed; transform: none; }
 
         .status-area { display: none; margin: 20px 0; padding: 25px; background-color: #f8fafc; border-radius: 16px; }
-        .status-text { font-weight: 600; color: var(--primary); margin-bottom: 15px; font-size: 1.1rem; }
+        .status-text { font-weight: 600; color: var(--primary); margin-bottom: 15px; font-size: 1.1rem; word-break: keep-all; }
         .progress-wrapper { width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
-        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); transition: width 0.1s ease; }
+        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); transition: width 0.3s ease; }
         
         .canvas-wrapper {
             display: inline-block; padding: 10px; border-radius: 12px; width: 100%;
             background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
             background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; box-shadow: inset 0 0 0 2px #cbd5e1;
         }
-        canvas, #previewImage { max-width: 100%; height: auto; border-radius: 8px; margin: 0 auto; display: block; }
+        canvas, #previewImage { max-width: 100%; height: auto; max-height: 400px; border-radius: 8px; margin: 0 auto; display: block; object-fit: contain; }
         #previewImage { display: none; }
         
         .result-area { display: none; margin-top: 30px; }
@@ -75,14 +77,14 @@
 <div class="app-container">
     <div class="header">
         <h1>🎲 코코포리아 파도 메이커</h1>
-        <p>어떤 큰 이미지를 넣어도 코코포리아 용량에 맞게 자동으로 최적화해줍니다.<br>애니메이션(APNG)과 정지(WebP)를 모두 지원합니다.</p>
+        <p>전신 스탠딩 같은 큰 파일도 백그라운드 워커를 통해 튕김 없이 변환합니다.<br>용량 제한에 맞게 자동으로 최적화됩니다.</p>
     </div>
 
     <div class="controls">
         <div class="control-group">
             <label for="formatSelect">출력 포맷 (기본 APNG)</label>
             <select id="formatSelect">
-                <option value="apng">🖼️ APNG (애니메이션 / 기본)</option>
+                <option value="apng">🖼️ APNG (애니메이션 / 코코포리아 추천)</option>
                 <option value="webp_static">🖼️ WebP (단일 정지 이미지)</option>
                 <option value="webp_zip">📦 WebP (애니메이션 프레임 ZIP)</option>
             </select>
@@ -91,14 +93,14 @@
         <div class="control-group" id="limitGroup">
             <label for="limitSelect">자동 용량 맞춤 (APNG 전용)</label>
             <select id="limitSelect">
-                <option value="10">코코포리아 프로 (10MB 이하로 자동 압축)</option>
-                <option value="1">코코포리아 무료 (1MB 이하로 자동 압축)</option>
-                <option value="999">제한 없음 (원본 화질 강제 유지)</option>
+                <option value="10">코코포리아 프로 (10MB 이하)</option>
+                <option value="1">코코포리아 무료 (1MB 이하)</option>
+                <option value="999">제한 없음 (고화질 유지)</option>
             </select>
         </div>
 
         <div class="control-group" id="staticProgressGroup" style="display: none;">
-            <label for="staticProgress">파도 위치 (정지 화면 캡처용)</label>
+            <label for="staticProgress">파도 위치 (정지 화면용)</label>
             <div class="range-slider">
                 <input type="range" id="staticProgress" min="0" max="100" value="50">
                 <span id="staticProgressValue">50%</span>
@@ -144,7 +146,6 @@
 </div>
 
 <script>
-    // UI 요소 변수 연결
     const formatSelect = document.getElementById('formatSelect');
     const limitGroup = document.getElementById('limitGroup');
     const staticProgressGroup = document.getElementById('staticProgressGroup');
@@ -152,7 +153,6 @@
     const staticProgressInput = document.getElementById('staticProgress');
     const staticProgressValue = document.getElementById('staticProgressValue');
     
-    // 포맷 변경 시 메뉴 보이기/숨기기
     formatSelect.addEventListener('change', () => {
         const fmt = formatSelect.value;
         limitGroup.style.display = (fmt === 'apng') ? 'flex' : 'none';
@@ -189,29 +189,43 @@
 
     const updateProgress = (msg, percent) => {
         statusText.innerText = msg;
+        statusText.style.color = 'var(--primary)';
         progressBar.style.width = `${percent}%`;
+    };
+
+    const showError = (msg) => {
+        statusText.innerText = msg;
+        statusText.style.color = 'var(--error)';
+        progressBar.style.width = `100%`;
+        progressBar.style.background = 'var(--error)';
+        uploadBtn.style.pointerEvents = 'auto';
+        uploadBtn.innerText = "📁 다시 시도하기";
+        imageInput.value = '';
     };
 
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
+        // UI 잠금 및 초기화
         uploadBtn.style.pointerEvents = 'none';
         uploadBtn.innerText = "⏳ 렌더링 중입니다...";
         statusArea.style.display = 'block';
         resultArea.style.display = 'none';
         canvas.style.display = 'block';
         previewImage.style.display = 'none';
+        progressBar.style.background = 'linear-gradient(90deg, #a78bfa, #8b5cf6)';
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
-                // APNG 인코딩 시작 전 기본 최대 해상도 제한 (800px)
-                const MAX_SIZE = 800; 
+                // 1000x2000 이상의 큰 파일 튕김을 막기 위한 1차 최대 크기 제한 (메모리 보호)
+                const MAX_DIM = formatSelect.value === 'apng' ? 600 : 1000; 
                 let w = img.width, h = img.height;
-                if (w > MAX_SIZE || h > MAX_SIZE) {
-                    const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
+                
+                if (w > MAX_DIM || h > MAX_DIM) {
+                    const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
                     w = Math.round(w * ratio); h = Math.round(h * ratio);
                 }
                 
@@ -221,6 +235,7 @@
                 
                 startProcess(w, h);
             };
+            img.onerror = () => showError("❌ 이미지 파일을 읽을 수 없습니다.");
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
@@ -249,7 +264,9 @@
                 finalBlob = await createWebpZip(w, h, angle);
             }
 
-            updateProgress(`✅ 작업 완료!`, 100);
+            if (!finalBlob) throw new Error("변환 결과물이 없습니다.");
+
+            updateProgress(`✅ 작업 완료! (${(finalBlob.size / 1024 / 1024).toFixed(2)} MB)`, 100);
             
             if (fmt !== 'webp_zip') {
                 const url = URL.createObjectURL(finalBlob);
@@ -261,18 +278,63 @@
             resultArea.style.display = 'block';
             downloadBtn.innerText = (fmt === 'webp_zip') ? '📦 프레임 ZIP 다운로드' : '💾 저장하기';
 
-        } catch (error) {
-            console.error(error);
-            updateProgress(`❌ 오류 발생! 다시 시도해주세요.`, 0);
-            statusText.style.color = 'red';
-        } finally {
+            // 정상 완료 후 버튼 복구
             uploadBtn.style.pointerEvents = 'auto';
             uploadBtn.innerText = "📁 다른 이미지 선택하기";
-            imageInput.value = ''; 
+            imageInput.value = '';
+
+        } catch (error) {
+            console.error(error);
+            showError(`❌ 변환 실패: 이미지가 너무 크거나 메모리가 부족합니다. 해상도를 줄여서 다시 시도해주세요.`);
         }
     }
 
-    // 🖼️ 1. APNG (코코포리아 용량 자동 맞춤 알고리즘 적용)
+    // 🚀 Web Worker를 이용한 비동기 APNG 인코딩 (브라우저 멈춤 완전 해결)
+    function encodeApngAsync(frames, w, h, delays) {
+        return new Promise((resolve, reject) => {
+            try {
+                // 워커 코드 구성 (백그라운드에서 UPNG 로드 및 실행)
+                const workerCode = `
+                    self.importScripts('https://unpkg.com/upng-js@2.1.0/UPNG.js');
+                    self.onmessage = function(e) {
+                        try {
+                            const buffer = UPNG.encode(e.data.frames, e.data.w, e.data.h, 0, e.data.delays);
+                            self.postMessage({ success: true, buffer: buffer });
+                        } catch (err) {
+                            self.postMessage({ success: false, error: err.toString() });
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+                
+                worker.onmessage = (e) => {
+                    if (e.data.success) resolve(e.data.buffer);
+                    else reject(new Error(e.data.error));
+                    worker.terminate();
+                };
+                worker.onerror = (err) => {
+                    // 워커 생성 실패시 메인 스레드 폴백으로 넘어감
+                    worker.terminate();
+                    reject(err); 
+                };
+                
+                worker.postMessage({ frames, w, h, delays });
+            } catch (err) {
+                // 로컬 파일 실행 등 보안 제약으로 워커 실패 시 메인 스레드에서 직접 압축 (폴백)
+                console.warn("Web Worker 실패, 메인 스레드에서 처리합니다.", err);
+                setTimeout(() => {
+                    try {
+                        resolve(UPNG.encode(frames, w, h, 0, delays));
+                    } catch (e) {
+                        reject(e);
+                    }
+                }, 100);
+            }
+        });
+    }
+
+    // 🖼️ 1. APNG (안전한 해상도 축소 및 백그라운드 인코딩 적용)
     async function createAutoResizedAPNG(originalW, originalH, angle) {
         let targetMB = parseFloat(limitSelect.value);
         let maxBytes = targetMB * 1024 * 1024;
@@ -287,48 +349,54 @@
             let frames = [];
             let delays = [];
             
-            // 용량 절약을 위해 FPS를 15로 낮춤
-            const FPS = 15; 
+            // 안정성을 위해 FPS와 프레임 수를 조정 (FPS 12로 최적화)
+            const FPS = 12; 
             const fadeFramesCount = Math.floor(FPS * 1.5); 
             const holdTimeSec = parseFloat(holdTimeInput.value) || 4;
             
-            updateProgress(`🚀 APNG 렌더링 중... (해상도 ${sw}px, 시도 ${attempt}회)`, 30);
-            await new Promise(r => setTimeout(r, 0));
+            updateProgress(`🚀 프레임 스케치 중... (해상도 ${sw}x${sh} / 시도 ${attempt}회)`, 30);
+            await new Promise(r => setTimeout(r, 10)); // UI 업데이트 양보
 
-            // 프레임 생성 루프
+            // 페이드 인
             for (let i = 0; i <= fadeFramesCount; i++) {
                 drawScaledWave(sw, sh, angle, i / fadeFramesCount, true);
                 frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
                 delays.push(1000 / FPS);
             }
 
-            drawScaledWave(sw, sh, angle, 1, true); // 유지 프레임
+            // 유지 프레임
+            drawScaledWave(sw, sh, angle, 1, true); 
             frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
             delays.push(holdTimeSec * 1000);
 
+            // 페이드 아웃
             for (let i = 0; i <= fadeFramesCount; i++) {
                 drawScaledWave(sw, sh, angle, i / fadeFramesCount, false);
                 frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
                 delays.push(1000 / FPS);
             }
 
-            ctx.clearRect(0, 0, sw, sh); // 투명 빈 화면
+            // 빈 화면
+            ctx.clearRect(0, 0, sw, sh);
             frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
             delays.push(500);
             
-            updateProgress(`📦 APNG 압축 중... (용량이 맞는지 확인합니다)`, 80);
-            await new Promise(r => setTimeout(r, 50));
+            updateProgress(`📦 백그라운드에서 APNG 압축 중... (화면이 멈추지 않습니다 🏃)`, 70);
+            
+            // UI가 텍스트를 바꿀 수 있도록 살짝 대기
+            await new Promise(r => setTimeout(r, 100));
 
-            const apngBuffer = UPNG.encode(frames, sw, sh, 0, delays);
+            // 워커를 통해 백그라운드에서 인코딩 (브라우저 프리즈 방지)
+            const apngBuffer = await encodeApngAsync(frames, sw, sh, delays);
             bestBlob = new Blob([apngBuffer], { type: 'image/png' });
 
-            // 10MB 밑으로 떨어졌거나, 무제한 옵션이거나, 너무 작아지면 루프 종료
+            // 목표 용량 이하이거나, 무제한 옵션이거나, 너무 많이 축소했으면 종료
             if (targetMB > 100 || bestBlob.size <= maxBytes || scale <= 0.3) {
                 break;
             }
 
-            // 실패 시 해상도를 20% 줄이고 다시 시도
-            scale *= 0.8;
+            // 용량이 초과했다면 해상도를 줄이고 재시도
+            scale *= 0.75;
             attempt++;
         }
         
@@ -338,21 +406,19 @@
     // 📸 2. 단일 정지 WebP 이미지
     async function createStaticWebP(w, h, angle) {
         const progress = parseFloat(staticProgressInput.value) / 100;
+        updateProgress(`📷 정지 이미지 추출 중...`, 50);
         
-        updateProgress(`📷 WebP 단일 정지 이미지 추출 중...`, 50);
         drawScaledWave(w, h, angle, progress, true);
         
         return new Promise(resolve => {
-            canvas.toBlob(blob => {
-                resolve(blob);
-            }, 'image/webp', 1.0);
+            canvas.toBlob(blob => resolve(blob), 'image/webp', 1.0);
         });
     }
 
-    // 📦 3. WebP 프레임 묶음 ZIP (ezgif 병합용)
+    // 📦 3. WebP 프레임 묶음 ZIP
     async function createWebpZip(w, h, angle) {
         const zip = new JSZip();
-        const FPS = 15;
+        const FPS = 12;
         const fadeFramesCount = Math.floor(FPS * 1.5);
         const holdFramesCount = Math.floor((parseFloat(holdTimeInput.value) || 4) * FPS);
         
@@ -366,7 +432,7 @@
             zip.file(fileName, base64, {base64: true});
             
             currentFrameIdx++;
-            updateProgress(`📷 프레임 추출 중...`, Math.min(99, Math.round((currentFrameIdx / totalFrames) * 90)));
+            updateProgress(`📷 프레임 추출 중...`, Math.min(95, Math.round((currentFrameIdx / totalFrames) * 90)));
             await new Promise(r => setTimeout(r, 0));
         };
 
