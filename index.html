@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>투명 파도 애니메이션 메이커 (APNG/WebM)</title>
-    <!-- APNG 인코딩용 라이브러리 -->
+    <title>TRPG & 코코포리아 파도 메이커</title>
     <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg-color: #f8fafc;
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --bg-color: #f5f3ff;
             --card-bg: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
@@ -26,14 +26,14 @@
         .app-container {
             background-color: var(--card-bg); width: 100%; max-width: 800px;
             padding: 40px; border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05); text-align: center;
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.1); text-align: center;
         }
         .header h1 { font-size: 2.2rem; color: var(--primary); margin-bottom: 10px; }
         .header p { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; line-height: 1.5; }
         
         .controls {
             display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 25px;
-            background: #f1f5f9; padding: 20px; border-radius: 12px;
+            background: #f8fafc; padding: 20px; border-radius: 12px;
         }
         .control-group { display: flex; flex-direction: column; text-align: left; gap: 8px; flex: 1; min-width: 150px; }
         .control-group label { font-weight: 600; font-size: 0.9rem; }
@@ -41,6 +41,8 @@
             padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;
             font-size: 1rem; outline: none; background: white; width: 100%;
         }
+        .range-slider { display: flex; align-items: center; gap: 10px; }
+        .range-slider input { flex: 1; cursor: pointer; }
         
         .btn {
             display: inline-flex; align-items: center; justify-content: center;
@@ -51,18 +53,18 @@
         .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         .btn-primary:disabled { background-color: #cbd5e1; cursor: not-allowed; transform: none; }
 
-        .status-area { display: none; margin: 20px 0; padding: 25px; background-color: #f1f5f9; border-radius: 16px; }
+        .status-area { display: none; margin: 20px 0; padding: 25px; background-color: #f8fafc; border-radius: 16px; }
         .status-text { font-weight: 600; color: var(--primary); margin-bottom: 15px; font-size: 1.1rem; }
         .progress-wrapper { width: 100%; height: 10px; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
-        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #818cf8, #6366f1); transition: width 0.1s ease; }
+        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #a78bfa, #8b5cf6); transition: width 0.1s ease; }
         
         .canvas-wrapper {
             display: inline-block; padding: 10px; border-radius: 12px; width: 100%;
             background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
             background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; box-shadow: inset 0 0 0 2px #cbd5e1;
         }
-        canvas, #previewImage, #previewVideo { max-width: 100%; height: auto; border-radius: 8px; margin: 0 auto; display: block; }
-        #previewImage, #previewVideo { display: none; }
+        canvas, #previewImage { max-width: 100%; height: auto; border-radius: 8px; margin: 0 auto; display: block; }
+        #previewImage { display: none; }
         
         .result-area { display: none; margin-top: 30px; }
         .result-area h3 { margin-bottom: 20px; }
@@ -72,60 +74,69 @@
 
 <div class="app-container">
     <div class="header">
-        <h1>🌊 투명 파도 메이커</h1>
-        <p>설정한 방향에서 파도가 밀려옵니다.<br>초고화질을 원하시면 <b>WebM</b>을, 깃허브용 이미지를 원하시면 <b>APNG</b>를 선택하세요.</p>
+        <h1>🎲 코코포리아 파도 메이커</h1>
+        <p>어떤 큰 이미지를 넣어도 코코포리아 용량에 맞게 자동으로 최적화해줍니다.<br>애니메이션(APNG)과 정지(WebP)를 모두 지원합니다.</p>
     </div>
 
-    <!-- 설정 영역 -->
     <div class="controls">
         <div class="control-group">
-            <label for="formatSelect">저장 포맷 (화질)</label>
+            <label for="formatSelect">출력 포맷 (기본 APNG)</label>
             <select id="formatSelect">
-                <option value="webm">🎥 WebM (원본 고화질 / 동영상)</option>
-                <option value="apng">🖼️ APNG (웹 최적화 / 700px 축소)</option>
+                <option value="apng">🖼️ APNG (애니메이션 / 기본)</option>
+                <option value="webp_static">🖼️ WebP (단일 정지 이미지)</option>
+                <option value="webp_zip">📦 WebP (애니메이션 프레임 ZIP)</option>
             </select>
         </div>
+        
+        <div class="control-group" id="limitGroup">
+            <label for="limitSelect">자동 용량 맞춤 (APNG 전용)</label>
+            <select id="limitSelect">
+                <option value="10">코코포리아 프로 (10MB 이하로 자동 압축)</option>
+                <option value="1">코코포리아 무료 (1MB 이하로 자동 압축)</option>
+                <option value="999">제한 없음 (원본 화질 강제 유지)</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="staticProgressGroup" style="display: none;">
+            <label for="staticProgress">파도 위치 (정지 화면 캡처용)</label>
+            <div class="range-slider">
+                <input type="range" id="staticProgress" min="0" max="100" value="50">
+                <span id="staticProgressValue">50%</span>
+            </div>
+        </div>
+
         <div class="control-group">
-            <label for="directionSelect">파도 시작 방향</label>
+            <label for="directionSelect">파도 방향</label>
             <select id="directionSelect">
                 <option value="left">좌측 ➔ 우측</option>
                 <option value="right">우측 ➔ 좌측</option>
                 <option value="top">상단 ➔ 하단</option>
                 <option value="bottom">하단 ➔ 상단</option>
-                <option value="tl">좌측 상단 ➔ 우측 하단</option>
-                <option value="tr">우측 상단 ➔ 좌측 하단</option>
-                <option value="bl">좌측 하단 ➔ 우측 상단</option>
-                <option value="br">우측 하단 ➔ 좌측 상단</option>
             </select>
         </div>
-        <div class="control-group">
-            <label for="holdTime">유지 시간 (초)</label>
+
+        <div class="control-group" id="holdTimeGroup">
+            <label for="holdTime">완전 표시 유지 시간 (초)</label>
             <input type="number" id="holdTime" value="4" min="0" max="10" step="0.5">
         </div>
     </div>
 
-    <!-- 업로드 버튼 -->
     <div>
-        <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display: none;">
+        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" style="display: none;">
         <label for="imageInput" class="btn btn-primary" id="uploadBtn">
             📁 투명 배경 이미지 선택하기
         </label>
     </div>
 
-    <!-- 상태 및 진행률 -->
     <div class="status-area" id="statusArea">
         <div class="status-text" id="statusText">대기 중...</div>
         <div class="progress-wrapper"><div class="progress-bar" id="progressBar"></div></div>
         <div class="canvas-wrapper">
-            <!-- 렌더링 캔버스 -->
             <canvas id="animationCanvas"></canvas>
-            <!-- 결과물 미리보기 -->
-            <img id="previewImage" alt="APNG 미리보기">
-            <video id="previewVideo" autoplay loop muted playsinline></video>
+            <img id="previewImage" alt="결과 미리보기">
         </div>
     </div>
 
-    <!-- 다운로드 영역 -->
     <div class="result-area" id="resultArea">
         <h3>🎉 생성 완료!</h3>
         <button id="downloadBtn" class="btn btn-primary">💾 다운로드</button>
@@ -133,9 +144,29 @@
 </div>
 
 <script>
-    const imageInput = document.getElementById('imageInput');
+    // UI 요소 변수 연결
     const formatSelect = document.getElementById('formatSelect');
+    const limitGroup = document.getElementById('limitGroup');
+    const staticProgressGroup = document.getElementById('staticProgressGroup');
+    const holdTimeGroup = document.getElementById('holdTimeGroup');
+    const staticProgressInput = document.getElementById('staticProgress');
+    const staticProgressValue = document.getElementById('staticProgressValue');
+    
+    // 포맷 변경 시 메뉴 보이기/숨기기
+    formatSelect.addEventListener('change', () => {
+        const fmt = formatSelect.value;
+        limitGroup.style.display = (fmt === 'apng') ? 'flex' : 'none';
+        holdTimeGroup.style.display = (fmt === 'webp_static') ? 'none' : 'flex';
+        staticProgressGroup.style.display = (fmt === 'webp_static') ? 'flex' : 'none';
+    });
+
+    staticProgressInput.addEventListener('input', (e) => {
+        staticProgressValue.innerText = e.target.value + '%';
+    });
+
+    const imageInput = document.getElementById('imageInput');
     const directionSelect = document.getElementById('directionSelect');
+    const limitSelect = document.getElementById('limitSelect');
     const holdTimeInput = document.getElementById('holdTime');
     
     const statusArea = document.getElementById('statusArea');
@@ -146,7 +177,6 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
     const previewImage = document.getElementById('previewImage');
-    const previewVideo = document.getElementById('previewVideo');
     const resultArea = document.getElementById('resultArea');
     const downloadBtn = document.getElementById('downloadBtn');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -155,9 +185,8 @@
     let processedCtx = processedCanvas.getContext('2d');
     
     let finalBlob = null;
-    let finalExt = 'webm';
+    let finalExt = 'png';
 
-    // 진행률 업데이트 함수
     const updateProgress = (msg, percent) => {
         statusText.innerText = msg;
         progressBar.style.width = `${percent}%`;
@@ -167,25 +196,19 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        // UI 상태 변경
         uploadBtn.style.pointerEvents = 'none';
-        uploadBtn.innerText = "⏳ 작업 진행 중...";
+        uploadBtn.innerText = "⏳ 렌더링 중입니다...";
         statusArea.style.display = 'block';
         resultArea.style.display = 'none';
-        
         canvas.style.display = 'block';
         previewImage.style.display = 'none';
-        previewVideo.style.display = 'none';
-        previewVideo.pause();
 
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
-                // 포맷별 최대 해상도 (WebM은 원본 화질 유지를 위해 4K까지 허용, APNG는 700px)
-                const isWebM = formatSelect.value === 'webm';
-                const MAX_SIZE = isWebM ? 3840 : 700; 
-
+                // APNG 인코딩 시작 전 기본 최대 해상도 제한 (800px)
+                const MAX_SIZE = 800; 
                 let w = img.width, h = img.height;
                 if (w > MAX_SIZE || h > MAX_SIZE) {
                     const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
@@ -204,49 +227,43 @@
     });
 
     async function startProcess(w, h) {
-        const isWebM = formatSelect.value === 'webm';
-        
-        // 방향에 따른 각도 계산
+        const fmt = formatSelect.value;
         let angle = 0;
+        
         switch(directionSelect.value) {
             case 'left': angle = 0; break;
             case 'right': angle = Math.PI; break;
             case 'top': angle = Math.PI / 2; break;
             case 'bottom': angle = -Math.PI / 2; break;
-            case 'tl': angle = Math.atan2(h, w); break;
-            case 'br': angle = Math.atan2(-h, -w); break;
-            case 'tr': angle = Math.atan2(h, -w); break;
-            case 'bl': angle = Math.atan2(-h, w); break;
         }
 
         try {
-            if (isWebM) {
-                finalExt = 'webm';
-                finalBlob = await createWebM(w, h, angle);
-            } else {
+            if (fmt === 'apng') {
                 finalExt = 'png';
-                finalBlob = await createAPNG(w, h, angle);
+                finalBlob = await createAutoResizedAPNG(w, h, angle);
+            } else if (fmt === 'webp_static') {
+                finalExt = 'webp';
+                finalBlob = await createStaticWebP(w, h, angle);
+            } else {
+                finalExt = 'zip';
+                finalBlob = await createWebpZip(w, h, angle);
             }
 
-            // 완료 후 미리보기 세팅
             updateProgress(`✅ 작업 완료!`, 100);
-            const url = URL.createObjectURL(finalBlob);
-            canvas.style.display = 'none';
             
-            if (isWebM) {
-                previewVideo.src = url;
-                previewVideo.style.display = 'block';
-            } else {
+            if (fmt !== 'webp_zip') {
+                const url = URL.createObjectURL(finalBlob);
+                canvas.style.display = 'none';
                 previewImage.src = url;
                 previewImage.style.display = 'block';
             }
             
             resultArea.style.display = 'block';
-            downloadBtn.innerText = `💾 ${isWebM ? 'WebM 비디오' : 'APNG 이미지'} 다운로드`;
+            downloadBtn.innerText = (fmt === 'webp_zip') ? '📦 프레임 ZIP 다운로드' : '💾 저장하기';
 
         } catch (error) {
             console.error(error);
-            updateProgress(`❌ 오류 발생! 이미지 크기를 줄여보세요.`, 0);
+            updateProgress(`❌ 오류 발생! 다시 시도해주세요.`, 0);
             statusText.style.color = 'red';
         } finally {
             uploadBtn.style.pointerEvents = 'auto';
@@ -255,125 +272,132 @@
         }
     }
 
-    // 🎥 [1] 고화질 WebM 생성 (MediaRecorder 기반 리얼타임 렌더링)
-    async function createWebM(w, h, angle) {
-        return new Promise((resolve) => {
-            const FPS = 30; // 부드러운 30프레임
-            const stream = canvas.captureStream(FPS);
-            
-            // 투명도를 지원하는 WebM 코덱 (VP9 우선 적용)
-            let mimeType = 'video/webm; codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm; codecs=vp8';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-            
-            // 비트레이트를 극대화하여 원본 화질 유지 (20Mbps)
-            const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 20000000 });
-            
-            let chunks = [];
-            recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-            recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
-            
-            recorder.start();
+    // 🖼️ 1. APNG (코코포리아 용량 자동 맞춤 알고리즘 적용)
+    async function createAutoResizedAPNG(originalW, originalH, angle) {
+        let targetMB = parseFloat(limitSelect.value);
+        let maxBytes = targetMB * 1024 * 1024;
+        let scale = 1.0;
+        let attempt = 1;
+        let bestBlob = null;
 
-            const fadeDur = 1500; // 페이드 1.5초
-            const holdDur = (parseFloat(holdTimeInput.value) || 4) * 1000;
-            const totalDur = fadeDur + holdDur + fadeDur;
-            const startTime = performance.now();
+        while (true) {
+            let sw = Math.round(originalW * scale);
+            let sh = Math.round(originalH * scale);
             
-            // 애니메이션 루프
-            const draw = () => {
-                const now = performance.now();
-                const elapsed = now - startTime;
-                const percent = Math.min(99, Math.round((elapsed / totalDur) * 100));
-                
-                if (elapsed <= fadeDur) {
-                    drawWaveFrame(w, h, elapsed / fadeDur, angle, true);
-                    updateProgress(`🎬 고화질 WebM 렌더링 중... (등장)`, percent);
-                } else if (elapsed <= fadeDur + holdDur) {
-                    drawWaveFrame(w, h, 1, angle, true);
-                    updateProgress(`🎬 고화질 WebM 렌더링 중... (유지 시간)`, percent);
-                } else if (elapsed <= totalDur) {
-                    const outElapsed = elapsed - fadeDur - holdDur;
-                    drawWaveFrame(w, h, outElapsed / fadeDur, angle, false);
-                    updateProgress(`🎬 고화질 WebM 렌더링 중... (퇴장)`, percent);
-                }
-                
-                if (elapsed < totalDur) {
-                    requestAnimationFrame(draw);
-                } else {
-                    ctx.clearRect(0, 0, w, h);
-                    // 프레임 캡처 여유시간 부여 후 종료
-                    setTimeout(() => recorder.stop(), 150);
-                }
-            };
-            draw();
+            let frames = [];
+            let delays = [];
+            
+            // 용량 절약을 위해 FPS를 15로 낮춤
+            const FPS = 15; 
+            const fadeFramesCount = Math.floor(FPS * 1.5); 
+            const holdTimeSec = parseFloat(holdTimeInput.value) || 4;
+            
+            updateProgress(`🚀 APNG 렌더링 중... (해상도 ${sw}px, 시도 ${attempt}회)`, 30);
+            await new Promise(r => setTimeout(r, 0));
+
+            // 프레임 생성 루프
+            for (let i = 0; i <= fadeFramesCount; i++) {
+                drawScaledWave(sw, sh, angle, i / fadeFramesCount, true);
+                frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
+                delays.push(1000 / FPS);
+            }
+
+            drawScaledWave(sw, sh, angle, 1, true); // 유지 프레임
+            frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
+            delays.push(holdTimeSec * 1000);
+
+            for (let i = 0; i <= fadeFramesCount; i++) {
+                drawScaledWave(sw, sh, angle, i / fadeFramesCount, false);
+                frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
+                delays.push(1000 / FPS);
+            }
+
+            ctx.clearRect(0, 0, sw, sh); // 투명 빈 화면
+            frames.push(ctx.getImageData(0, 0, sw, sh).data.buffer);
+            delays.push(500);
+            
+            updateProgress(`📦 APNG 압축 중... (용량이 맞는지 확인합니다)`, 80);
+            await new Promise(r => setTimeout(r, 50));
+
+            const apngBuffer = UPNG.encode(frames, sw, sh, 0, delays);
+            bestBlob = new Blob([apngBuffer], { type: 'image/png' });
+
+            // 10MB 밑으로 떨어졌거나, 무제한 옵션이거나, 너무 작아지면 루프 종료
+            if (targetMB > 100 || bestBlob.size <= maxBytes || scale <= 0.3) {
+                break;
+            }
+
+            // 실패 시 해상도를 20% 줄이고 다시 시도
+            scale *= 0.8;
+            attempt++;
+        }
+        
+        return bestBlob;
+    }
+
+    // 📸 2. 단일 정지 WebP 이미지
+    async function createStaticWebP(w, h, angle) {
+        const progress = parseFloat(staticProgressInput.value) / 100;
+        
+        updateProgress(`📷 WebP 단일 정지 이미지 추출 중...`, 50);
+        drawScaledWave(w, h, angle, progress, true);
+        
+        return new Promise(resolve => {
+            canvas.toBlob(blob => {
+                resolve(blob);
+            }, 'image/webp', 1.0);
         });
     }
 
-    // 🖼️ [2] 웹 최적화 APNG 생성 (UPNG.js 인코딩)
-    async function createAPNG(w, h, angle) {
-        const frames = [];
-        const delays = [];
+    // 📦 3. WebP 프레임 묶음 ZIP (ezgif 병합용)
+    async function createWebpZip(w, h, angle) {
+        const zip = new JSZip();
+        const FPS = 15;
+        const fadeFramesCount = Math.floor(FPS * 1.5);
+        const holdFramesCount = Math.floor((parseFloat(holdTimeInput.value) || 4) * FPS);
         
-        const FPS = 20;
-        const fadeFramesCount = Math.floor(FPS * 1.5); // 1.5초
-        const holdTimeSec = parseFloat(holdTimeInput.value) || 4;
-        const totalSteps = fadeFramesCount * 2 + 2;
-        let currentStep = 0;
+        const totalFrames = (fadeFramesCount * 2) + holdFramesCount + 5;
+        let currentFrameIdx = 0;
 
-        const updateAPNGProgress = (msg) => {
-            currentStep++;
-            updateProgress(msg, Math.min(99, Math.round((currentStep / totalSteps) * 60)));
+        const addWebPToZip = async () => {
+            const dataUrl = canvas.toDataURL('image/webp', 1.0);
+            const base64 = dataUrl.split(',')[1];
+            const fileName = `frame_${String(currentFrameIdx).padStart(3, '0')}.webp`;
+            zip.file(fileName, base64, {base64: true});
+            
+            currentFrameIdx++;
+            updateProgress(`📷 프레임 추출 중...`, Math.min(99, Math.round((currentFrameIdx / totalFrames) * 90)));
+            await new Promise(r => setTimeout(r, 0));
         };
 
-        // 1. 페이드 인
         for (let i = 0; i <= fadeFramesCount; i++) {
-            drawWaveFrame(w, h, i / fadeFramesCount, angle, true);
-            frames.push(ctx.getImageData(0, 0, w, h).data.buffer);
-            delays.push(1000 / FPS);
-            updateAPNGProgress(`🌊 애니메이션 렌더링 중... (페이드 인)`);
-            await new Promise(r => setTimeout(r, 0));
+            drawScaledWave(w, h, angle, i / fadeFramesCount, true); await addWebPToZip();
         }
-
-        // 2. 유지 프레임 (단 1장으로 용량 최적화)
-        drawWaveFrame(w, h, 1, angle, true);
-        frames.push(ctx.getImageData(0, 0, w, h).data.buffer);
-        delays.push(holdTimeSec * 1000);
-        updateAPNGProgress(`⏳ 유지 프레임 생성 중...`);
-        await new Promise(r => setTimeout(r, 0));
-
-        // 3. 페이드 아웃
+        for (let i = 0; i < holdFramesCount; i++) {
+            drawScaledWave(w, h, angle, 1, true); await addWebPToZip();
+        }
         for (let i = 0; i <= fadeFramesCount; i++) {
-            drawWaveFrame(w, h, i / fadeFramesCount, angle, false);
-            frames.push(ctx.getImageData(0, 0, w, h).data.buffer);
-            delays.push(1000 / FPS);
-            updateAPNGProgress(`🌊 애니메이션 렌더링 중... (페이드 아웃)`);
-            await new Promise(r => setTimeout(r, 0));
+            drawScaledWave(w, h, angle, i / fadeFramesCount, false); await addWebPToZip();
         }
-
-        // 빈 화면
         ctx.clearRect(0, 0, w, h);
-        frames.push(ctx.getImageData(0, 0, w, h).data.buffer);
-        delays.push(500);
-        
-        updateProgress(`📦 APNG 파일 압축 중... (잠시 멈출 수 있습니다)`, 99);
-        await new Promise(r => setTimeout(r, 50));
+        for(let i = 0; i < 5; i++) await addWebPToZip();
 
-        const apngBuffer = UPNG.encode(frames, w, h, 0, delays);
-        return new Blob([apngBuffer], { type: 'image/png' });
+        updateProgress(`📦 ZIP 파일로 압축 중...`, 99);
+        return await zip.generateAsync({type: "blob"});
     }
 
-    // 🌊 파도 효과를 캔버스에 그리는 공통 함수
-    function drawWaveFrame(w, h, progress, angle, isFadingIn) {
-        ctx.clearRect(0, 0, w, h);
+    // 🌊 파도 그리기 코어 함수
+    function drawScaledWave(sw, sh, angle, progress, isFadingIn) {
+        canvas.width = sw; canvas.height = sh;
+        ctx.clearRect(0, 0, sw, sh);
 
-        const diag = Math.sqrt(w * w + h * h);
+        const diag = Math.sqrt(sw * sw + sh * sh);
         const amplitude = diag * 0.04;
         const freq = 0.03;
 
         ctx.save();
-        ctx.translate(w / 2, h / 2); // 중심축 이동
-        ctx.rotate(angle); // 선택한 방향으로 회전
+        ctx.translate(sw / 2, sh / 2);
+        ctx.rotate(angle);
 
         const startX = -diag / 2 - amplitude * 2;
         const endX = diag / 2 + amplitude * 2;
@@ -396,18 +420,24 @@
         ctx.clip(); 
 
         ctx.rotate(-angle);
-        ctx.translate(-w / 2, -h / 2);
-        ctx.drawImage(processedCanvas, 0, 0);
+        ctx.translate(-sw / 2, -sh / 2);
+        ctx.drawImage(processedCanvas, 0, 0, sw, sh);
         ctx.restore();
     }
 
-    // 다운로드 버튼
+    // 다운로드 실행
     downloadBtn.addEventListener('click', () => {
         if (!finalBlob) return;
         const url = URL.createObjectURL(finalBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `wave_animation.${finalExt}`;
+        
+        let filename = 'cocofolia_wave';
+        if (formatSelect.value === 'apng') filename += '.png';
+        else if (formatSelect.value === 'webp_static') filename += '.webp';
+        else filename += '_frames.zip';
+        
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
     });
