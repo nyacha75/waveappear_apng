@@ -3,56 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APNG 파도 메이커</title>
-    <link rel="stylesheet" href="style.css">
+    <title>깃허브 APNG 파도 메이커</title>
     <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
+    <style>
+        /* UI 디자인 및 스타일 (CSS) */
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 700px;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .header { margin-bottom: 35px; }
+        .header h1 { font-size: 2.2rem; color: var(--primary); margin-bottom: 10px; font-weight: 800; }
+        .header p { color: var(--text-muted); font-size: 1rem; line-height: 1.5; }
+
+        /* 업로드 버튼 디자인 */
+        .upload-area { margin-bottom: 30px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 14px 28px; font-size: 1rem; font-weight: 600;
+            border-radius: 12px; cursor: pointer; border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary { background-color: var(--primary); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
+        .btn-primary:disabled { background-color: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* 상태 및 진행도 UI */
+        .status-area {
+            display: none; /* 초기에는 숨김 */
+            margin: 20px 0;
+            padding: 25px;
+            background-color: #f1f5f9;
+            border-radius: 16px;
+        }
+        .status-text { font-weight: 600; color: var(--primary); margin-bottom: 15px; font-size: 1.1rem; }
+        
+        .progress-wrapper {
+            width: 100%; height: 10px;
+            background-color: #e2e8f0;
+            border-radius: 10px; overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-bar {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #818cf8, #6366f1);
+            border-radius: 10px;
+            transition: width 0.1s ease;
+        }
+
+        /* 캔버스 및 미리보기 */
+        .canvas-wrapper {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 12px;
+            background-image: 
+                linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+                linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            box-shadow: inset 0 0 0 2px #cbd5e1;
+        }
+        canvas { max-width: 100%; height: auto; border-radius: 8px; display: block; }
+        #previewImage { max-width: 100%; display: none; border-radius: 8px; }
+
+        /* 결과 및 다운로드 영역 */
+        .result-area { display: none; margin-top: 30px; }
+        .result-area h3 { margin-bottom: 20px; color: var(--text-main); }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>깃허브 APNG 파도 메이커</h1>
-            <p>이미지를 업로드하고 파도가 지나가듯 나타나고 사라지는 투명 APNG를 만드세요.</p>
-        </header>
 
-        <main>
-            <div class="upload-section">
-                <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display: none;">
-                <label for="imageInput" class="btn upload-btn">
-                    <span class="icon">📁</span> 이미지 선택 (투명 PNG 권장)
-                </label>
-            </div>
-
-            <div class="preview-section" id="previewSection" style="display: none;">
-                <div class="loader-container" id="loaderContainer">
-                    <div class="loader"></div>
-                    <p>APNG 생성 중...</p>
-                </div>
-
-                <div class="preview-box" id="previewBox" style="display: none;">
-                    <h2>미리보기 및 다운로드</h2>
-                    <div class="canvas-container">
-                        <canvas id="animationCanvas"></canvas>
-                    </div>
-                    
-                    <div class="action-buttons">
-                        <button id="downloadBtn" class="btn download-btn" disabled>
-                            <span class="icon">💾</span> APNG 다운로드
-                        </button>
-                    </div>
-                    
-                    <div class="code-output">
-                        <label for="githubCode">깃허브 README 코드:</label>
-                        <textarea id="githubCode" readonly rows="2">![애니메이션 설명](wave_animation.png)</textarea>
-                        <button id="copyCodeBtn" class="btn copy-btn">코드 복사</button>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <footer>
-            <p>제작: [사용자 이름] | <a href="#" target="_blank">GitHub 저장소</a></p>
-        </footer>
+<div class="app-container">
+    <div class="header">
+        <h1>🌊 APNG 파도 메이커</h1>
+        <p>이미지를 업로드하면 파도가 지나가며 페이드인/아웃 되는 투명 애니메이션을 자동 생성합니다.<br>생성 과정을 실시간으로 확인할 수 있습니다.</p>
     </div>
-    <script src="script.js"></script>
+
+    <div class="upload-area">
+        <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display: none;">
+        <label for="imageInput" class="btn btn-primary">
+            📁 이미지 선택하기 (배경 투명 PNG 권장)
+        </label>
+    </div>
+
+    <div class="status-area" id="statusArea">
+        <div class="status-text" id="statusText">애니메이션 프레임 생성 중... 0%</div>
+        <div class="progress-wrapper">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="animationCanvas"></canvas>
+            <img id="previewImage" alt="APNG 미리보기">
+        </div>
+    </div>
+
+    <div class="result-area" id="resultArea">
+        <h3>🎉 생성 완료!</h3>
+        <button id="downloadBtn" class="btn btn-primary">💾 APNG 다운로드</button>
+    </div>
+</div>
+
+<script>
+    // JavaScript (애니메이션 로직 및 UI 제어)
+    const imageInput = document.getElementById('imageInput');
+    const statusArea = document.getElementById('statusArea');
+    const statusText = document.getElementById('statusText');
+    const progressBar = document.getElementById('progressBar');
+    const canvas = document.getElementById('animationCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const resultArea = document.getElementById('resultArea');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const previewImage = document.getElementById('previewImage');
+
+    let originalImage = null;
+    let finalApngBlob = null;
+
+    // 애니메이션 설정
+    const FPS = 20;
+    const DURATION = 3; // 총 3초 (페이드인 1.5초 + 페이드아웃 1.5초)
+    const TOTAL_FRAMES = FPS * DURATION;
+    
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            originalImage = new Image();
+            originalImage.onload = () => {
+                startProcess();
+            };
+            originalImage.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    async function startProcess() {
+        // UI 초기화
+        canvas.width = originalImage.width;
+        canvas.height = originalImage.height;
+        canvas.style.display = 'block';
+        previewImage.style.display = 'none';
+        statusArea.style.display = 'block';
+        resultArea.style.display = 'none';
+        progressBar.style.width = '0%';
+        
+        const frames = [];
+        const delays = new Array(TOTAL_FRAMES).fill(1000 / FPS);
+
+        // 1. 프레임 렌더링 (비동기로 진행하여 UI가 멈추지 않게 함)
+        for (let i = 0; i < TOTAL_FRAMES; i++) {
+            drawWaveFrame(i);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            frames.push(imageData.data.buffer);
+
+            // 진행도 업데이트 (50% 비중)
+            const progress = Math.round(((i + 1) / TOTAL_FRAMES) * 50);
+            statusText.innerText = `1단계: 애니메이션 그리는 중... ${progress}%`;
+            progressBar.style.width = `${progress}%`;
+
+            // UI 렌더링을 위해 잠깐 대기 (Event Loop 양보)
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        // 2. APNG 인코딩 (UPNG.js 연산이 무거우므로 진행도를 99%로 먼저 표기)
+        statusText.innerText = `2단계: APNG로 압축 중... (잠시 멈출 수 있습니다) 99%`;
+        progressBar.style.width = `99%`;
+        
+        // 브라우저가 화면을 그릴 시간을 줌
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        try {
+            // UPNG 인코딩 실행
+            const apngBuffer = UPNG.encode(frames, canvas.width, canvas.height, 0, delays);
+            finalApngBlob = new Blob([apngBuffer], { type: 'image/png' });
+            
+            // 완료 처리
+            statusText.innerText = `✅ 완료!`;
+            progressBar.style.width = `100%`;
+            
+            // 캔버스를 숨기고 생성된 APNG 이미지 태그로 미리보기 교체
+            const apngUrl = URL.createObjectURL(finalApngBlob);
+            canvas.style.display = 'none';
+            previewImage.src = apngUrl;
+            previewImage.style.display = 'block';
+            
+            resultArea.style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            statusText.innerText = `❌ 오류가 발생했습니다.`;
+            statusText.style.color = 'red';
+        }
+    }
+
+    // 파도 효과 그리기 함수
+    function drawWaveFrame(frameIndex) {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // 진행률 0.0 ~ 1.0 (페이드인과 페이드아웃을 위해 분할)
+        const progress = frameIndex / TOTAL_FRAMES; 
+        
+        const amplitude = h * 0.05; // 물결 높이
+        const frequency = 0.02; // 물결 촘촘함
+        
+        // 파도의 X 위치 계산 (왼쪽에서 오른쪽으로)
+        // 0~0.5 구간은 나타나고, 0.5~1.0 구간은 사라지게 설정
+        let waveX;
+        let isFadingIn = progress < 0.5;
+        let phaseProgress = isFadingIn ? (progress * 2) : ((progress - 0.5) * 2);
+
+        // 파도가 화면 밖에서 시작해서 완전히 덮거나 빠져나가도록 여유 공간 부여
+        const startX = -amplitude * 4;
+        const endX = w + amplitude * 4;
+        waveX = startX + (endX - startX) * phaseProgress;
+
+        ctx.save();
+        ctx.beginPath();
+        
+        if (isFadingIn) {
+            // 페이드 인: 왼쪽에서 오른쪽으로 채워짐
+            ctx.moveTo(0, 0);
+            for (let y = 0; y <= h; y += 5) {
+                const xOffset = Math.sin(y * frequency + (frameIndex * 0.2)) * amplitude;
+                ctx.lineTo(waveX + xOffset, y);
+            }
+            ctx.lineTo(0, h);
+        } else {
+            // 페이드 아웃: 왼쪽에서 오른쪽으로 비워짐 (오른쪽 영역만 남김)
+            ctx.moveTo(w, 0);
+            for (let y = 0; y <= h; y += 5) {
+                const xOffset = Math.sin(y * frequency + (frameIndex * 0.2)) * amplitude;
+                ctx.lineTo(waveX + xOffset, y);
+            }
+            ctx.lineTo(w, h);
+        }
+        
+        ctx.closePath();
+        ctx.clip(); // 그려진 파도 영역 안쪽만 표시되도록 마스크 씌움
+
+        // 원본 이미지 그리기
+        ctx.drawImage(originalImage, 0, 0);
+        ctx.restore();
+    }
+
+    // 다운로드 버튼 이벤트
+    downloadBtn.addEventListener('click', () => {
+        if (!finalApngBlob) return;
+        const url = URL.createObjectURL(finalApngBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'wave_effect.png';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+</script>
+
 </body>
 </html>
